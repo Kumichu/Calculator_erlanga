@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Базовый калькулятор{% endblock %}
+
+{% block content %}
+<div class="calculator-container">
+    <div class="calculator-header">
+        <h1>Базовый калькулятор</h1>
+        <p>Выполнение основных арифметических операций</p>
+    </div>
+
+    {% if error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/calculator/basic/calculate" class="calculator-form">
+        <div class="form-group">
+            <label for="num1">Первое число</label>
+            <input type="number" step="any" class="form-control" id="num1" name="num1"
+                   value="{{ num1 if num1 else '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="operation">Операция</label>
+            <select class="form-select" id="operation" name="operation" required>
+                <option value="add" {% if operation == 'add' %}selected{% endif %}>Сложение (+)</option>
+                <option value="subtract" {% if operation == 'subtract' %}selected{% endif %}>Вычитание (-)</option>
+                <option value="multiply" {% if operation == 'multiply' %}selected{% endif %}>Умножение (×)</option>
+                <option value="divide" {% if operation == 'divide' %}selected{% endif %}>Деление (÷)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="num2">Второе число</label>
+            <input type="number" step="any" class="form-control" id="num2" name="num2"
+                   value="{{ num2 if num2 else '' }}" required>
+        </div>
+
+        <button type="submit" class="btn-submit">Вычислить</button>
+    </form>
+
+    {% if calculation %}
+    <div class="result-area">
+        <h3>Результат вычисления</h3>
+        <div class="result-content">{{ calculation }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

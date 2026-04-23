@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Графики Эрланга A{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="calculator-container">
+    <div class="graph-page-header">
+        <div class="calculator-header">
+            <h1>Графики Эрланга A</h1>
+            <p>{{ page_subtitle }}</p>
+        </div>
+        <p class="graph-description">{{ page_description }}</p>
+    </div>
+
+    {% if error %}
+    <div class="error-message">{{ error }}</div>
+    {% else %}
+    {% if results %}
+    <div class="result-area">
+        <h3>Результаты расчёта</h3>
+        <div class="metrics-grid">
+            {% for item in results %}
+            <div class="metric-card">
+                <div class="metric-label">{{ item.label }}</div>
+                <div class="metric-value">{{ item.value }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="parameter-grid">
+        <div class="parameter-chip"><strong>λ</strong>{{ lambda_ }}</div>
+        <div class="parameter-chip"><strong>μ</strong>{{ mu }}</div>
+        <div class="parameter-chip"><strong>c</strong>{{ c }}</div>
+        <div class="parameter-chip"><strong>K</strong>{{ K }}</div>
+        <div class="parameter-chip"><strong>θ</strong>{{ theta }}</div>
+    </div>
+
+    <div class="graph-actions">
+        <a class="btn-secondary" href="{{ url_for('erlanga_graphs', lambda_=lambda_, mu=mu, c=c, K=K, theta=theta, mode='lambda') }}">Показать график по λ</a>
+        <a class="btn-secondary" href="{{ url_for('erlanga_graphs', lambda_=lambda_, mu=mu, c=c, K=K, theta=theta, mode='c') }}">Показать график по c</a>
+        <a class="btn-secondary" href="{{ url_for('calculator_erlanga') }}">Новый расчёт</a>
+    </div>
+
+    <div class="result-area">
+        <h3>Интерактивный график</h3>
+        <div class="plot-wrapper">{{ plot_div | safe }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Калькулятор{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <div class="welcome-header">
+        <h1>Калькулятор</h1>
+        <p>Выберите необходимый инструмент для вычислений</p>
+    </div>
+
+    <div class="calculator-menu">
+        <div class="menu-grid">
+
+            <div class="menu-card">
+                <h2>Калькулятор Эрланга А</h2>
+                <p>Расчёт системы с конечной очередью и конечным терпением</p>
+                <a href="/calculator/erlanga" class="menu-button">Перейти</a>
+            </div>
+
+            <div class="menu-card">
+                <h2>Калькулятор Эрланга В</h2>
+                <p>Расчёт системы без очереди и без терпения</p>
+                <a href="/calculator/erlangb" class="menu-button">Перейти</a>
+            </div>
+
+            <div class="menu-card">
+                <h2>Калькулятор Эрланга С</h2>
+                <p>Расчёт системы с конечной очередью и бесконечным терпением</p>
+                <a href="/calculator/erlangc" class="menu-button">Перейти</a>
+            </div>
+
+            <div class="menu-card">
+                <h2>Базовый калькулятор</h2>
+                <p>Выполнение основных арифметических операций: сложение, вычитание, умножение и деление</p>
+                <a href="/calculator/basic" class="menu-button">Перейти</a>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

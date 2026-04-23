@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Калькулятор{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <nav class="navigation">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <a href="/">Калькулятор</a>
+                </div>
+                <div class="nav-links">
+                    <a href="/calculator/erlanga" class="nav-link">Эрланга А</a>
+                    <a href="/calculator/erlangb" class="nav-link">Эрланга В</a>
+                    <a href="/calculator/erlangc" class="nav-link">Эрланга С</a>
+                    <a href="/calculator/basic" class="nav-link">Базовый</a>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="footer">
+            <div class="footer-container">
+                <p>МТУСИ. Бригада: ПММФ БСС2302</p>
+            </div>
+        </footer>
+    </div>
+
+</body>
+</html>
