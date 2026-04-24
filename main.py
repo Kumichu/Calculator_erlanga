@@ -44,6 +44,7 @@ def build_result_rows(metrics: Dict[str, float]):
         "P_wait": "Вероятность ожидания",
         "P_immediate": "Вероятность немедленного обслуживания",
         "P_abandon": "Доля ушедших из очереди",
+        "P_out": "Доля необслуженных заявок",
         "L_q": "Средняя длина очереди",
         "L_s": "Среднее число занятых каналов",
         "L": "Среднее число заявок в системе",
@@ -55,7 +56,7 @@ def build_result_rows(metrics: Dict[str, float]):
         "rho": "Нагрузка на один канал",
     }
 
-    percent_keys = {"P_block", "P_wait", "P_immediate", "P_abandon"}
+    percent_keys = {"P_block", "P_wait", "P_immediate", "P_abandon", "P_out"}
 
     rows = []
     for key, value in metrics.items():
@@ -68,6 +69,8 @@ def build_result_rows(metrics: Dict[str, float]):
             "label": labels.get(key, key),
             "value": formatted
         })
+
+    print(metrics.items())
     return rows
 
 
@@ -130,6 +133,7 @@ def erlanga_graphs():
         lambda_, mu, c, K, theta = parse_erlang_a_args(request.args)
         mode = request.args.get("mode", "lambda")
         metrics = erlang_a_calculator(lambda_, mu, c, K, theta)
+        print(metrics)
         return render_erlanga_result_page(lambda_, mu, c, K, theta, metrics, mode)
     except ValueError as e:
         return render_template(

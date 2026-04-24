@@ -10,7 +10,7 @@ def erlang_a_calculator(
         mu: float,
         c: int,
         K: int,
-        theta: float
+        sigma: float
 ) -> Dict[str, float]:
     """
     Расчёт показателей для модели Эрланга A (M/M/c/K+M) с конечной очередью
@@ -26,7 +26,7 @@ def erlang_a_calculator(
         Число обслуживающих каналов (серверов)
     K : int
         Общее число мест в системе (c + размер очереди). K >= c >= 1
-    theta : float
+    sigma : float
         Интенсивность ухода из очереди одного ожидающего клиента (ед./время)
 
     Возвращает:
@@ -48,8 +48,8 @@ def erlang_a_calculator(
         - rho: нагрузка на один канал (λ/(cμ))
     """
     # Проверка входных данных
-    if lambda_ <= 0 or mu <= 0 or theta < 0:
-        raise ValueError("Интенсивности должны быть положительными, theta >= 0")
+    if lambda_ <= 0 or mu <= 0 or sigma < 0:
+        raise ValueError("Интенсивности должны быть положительными")
     if c <= 0 or K < c:
         raise ValueError("Должно быть c >= 1 и K >= c")
 
@@ -67,7 +67,7 @@ def erlang_a_calculator(
             p_c_rel = rel_probs[c]
             prod = 1.0
             for i in range(1, K - c + 1):
-                prod *= lambda_ / (c * mu + i * theta)
+                prod *= lambda_ / (c * mu + i * sigma)
                 rel_probs[c + i] = p_c_rel * prod
 
         # Нормировочная константа
@@ -92,7 +92,7 @@ def erlang_a_calculator(
         # Рекуррентное заполнение для n = c+1..K
         for n in range(c + 1, K + 1):
             i = n - c  # номер места в очереди (i >= 1)
-            denom = c * mu + i * theta
+            denom = c * mu + i * sigma
             if denom <= 0:
                 raise ValueError(f"Знаменатель {denom} <= 0 при n={n}")
             ln_rel[n] = ln_rel[n - 1] + math.log(lambda_) - math.log(denom)
@@ -132,7 +132,11 @@ def erlang_a_calculator(
         # Среднее время пребывания в системе для всех принятых заявок
         W = L / lambda_eff if lambda_eff > 0 else 0.0
         # Вероятность ухода из очереди из-за нетерпения (доля от всех поступивших)
-        P_abandon = (theta * L_q) / lambda_ if lambda_ > 0 else 0.0
+        P_abandon = (sigma * L_q) / lambda_ if lambda_ > 0 else 0.0
+        # Доля необслуженных заявок, сумма ушедших из очереди и непоступивших при полной занятости
+        P_out = P_block + P_abandon
+        # Эффективная интенсивность входящего потока (принятые заявки, с учётом нетерпения)
+        lambda_eff = lambda_ * (1.0 - P_out)
         # Среднее время ожидания для тех, кто встал в очередь (включая ушедших)
         W_q_given_wait = L_q / (lambda_ * P_wait) if P_wait > 0 else 0.0
         # Среднее время ожидания для обслуженных заявок (приближённая оценка через Литтла)
@@ -143,15 +147,15 @@ def erlang_a_calculator(
             "P_wait": P_wait,  # Вероятность ожидания (заявка застаёт все каналы занятыми и есть место в очереди)
             "P_immediate": P_immediate,  # Вероятность немедленного обслуживания
             "P_abandon": P_abandon,  # Вероятность ухода из очереди из-за нетерпения (доля от всех поступивших)
+            "P_out": P_out, # Доля необслуженных заявок
             "L_q": L_q,  # Средняя длина очереди
             "L_s": L_s,  # Среднее число занятых каналов
             "L": L,  # Среднее число заявок в системе
             "W_q": W_q,  # Среднее время ожидания в очереди для всех принятых заявок
             "W": W,  # Среднее время пребывания в системе для всех принятых заявок
             "W_q_given_wait": W_q_given_wait,  # Среднее время ожидания для тех, кто встал в очередь (включая ушедших)
-            "W_q_served": W_q_served,
-            # Среднее время ожидания для обслуженных заявок (приближённая оценка через Литтла)
-            "lambda_eff": lambda_eff,  # Эффективная интенсивность входящего потока (принятые заявки)
+            "W_q_served": W_q_served, # Среднее время ожидания для обслуженных заявок
+            "lambda_eff": lambda_eff, # Эффективная интенсивность входящего потока (принятые заявки)
             "rho": rho  # Параметр нагрузки на один канал
         }
     else:
@@ -161,6 +165,7 @@ def erlang_a_calculator(
             "P_wait": 0.0,  # Ожидания нет, так как очередь отсутствует
             "P_immediate": 1.0 - P_block,  # Все принятые заявки обслуживаются сразу
             "P_abandon": 0.0,  # Ухода из очереди нет, так как очереди нет
+            "P_out": P_block, # Доля необслуженных заявок
             "L_q": 0.0,  # Средняя длина очереди
             "L_s": L_s,  # Среднее число занятых каналов
             "L": L_s,  # Среднее число заявок в системе = число занятых каналов
@@ -178,8 +183,7 @@ def plot_erlang_a_analysis_by_lambda_OLD(
         mu: float,
         c: int,
         K: int,
-        theta: float,
-        num_points: int = 50
+        sigma: float
 ) -> None:
     """
     Построение графиков зависимости основных характеристик от интенсивности λ.
@@ -192,7 +196,7 @@ def plot_erlang_a_analysis_by_lambda_OLD(
     num_points : int
         Количество точек для построения графиков
     """
-    lambdas = np.linspace(lambda_range[0], lambda_range[1], num_points)
+    lambdas = np.linspace(lambda_range[0], lambda_range[1], 100)
     results = {
         "P_block": [],
         "P_abandon": [],
@@ -203,7 +207,7 @@ def plot_erlang_a_analysis_by_lambda_OLD(
 
     for lam in lambdas:
         try:
-            res = erlang_a_calculator(lam, mu, c, K, theta)
+            res = erlang_a_calculator(lam, mu, c, K, sigma)
             results["P_block"].append(res["P_block"])
             results["P_abandon"].append(res["P_abandon"])
             results["L_q"].append(res["L_q"])
@@ -215,7 +219,7 @@ def plot_erlang_a_analysis_by_lambda_OLD(
                 results[key].append(np.nan)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    fig.suptitle(f'Модель Эрланга A: c={c}, K={K}, μ={mu:.2f}, θ={theta:.2f}', fontsize=14)
+    fig.suptitle(f'Модель Эрланга A: c={c}, K={K}, μ={mu:.2f}, θ={sigma:.2f}', fontsize=14)
 
     # Вероятность блокировки
     ax = axes[0, 0]
@@ -254,7 +258,7 @@ def plot_erlang_a_analysis_by_c_OLD(
         mu: float,
         c_range: Tuple[int, int],
         K_delta: int,
-        theta: float
+        sigma: float
 ) -> None:
     """
     Построение графиков зависимости основных характеристик от интенсивности λ.
@@ -276,7 +280,7 @@ def plot_erlang_a_analysis_by_c_OLD(
         "rho": []
     }
     for c in cs:
-        res = erlang_a_calculator(lam, mu, c, c + K_delta, theta)
+        res = erlang_a_calculator(lam, mu, c, c + K_delta, sigma)
         results["P_block"].append(res["P_block"])
         results["P_abandon"].append(res["P_abandon"])
         results["L_q"].append(res["L_q"])
@@ -290,7 +294,7 @@ def plot_erlang_a_analysis_by_c_OLD(
         #         results[key].append(np.nan)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    fig.suptitle(f'Модель Эрланга A: lambda={lam}, K_delta={K_delta}, μ={mu:.2f}, θ={theta:.2f}', fontsize=14)
+    fig.suptitle(f'Модель Эрланга A: lambda={lam}, K_delta={K_delta}, μ={mu:.2f}, θ={sigma:.2f}', fontsize=14)
 
     # Вероятность блокировки
     ax = axes[0, 0]
@@ -328,7 +332,7 @@ def plot_erlang_a_by_lambda(
         mu: float,
         c: int,
         K: int,
-        theta: float,
+        sigma: float,
         num_points: int = 100
 ) -> str:
     lambdas = np.linspace(lambda_range[0], lambda_range[1], num_points)
@@ -341,7 +345,7 @@ def plot_erlang_a_by_lambda(
     }
 
     for lam in lambdas:
-        res = erlang_a_calculator(lam, mu, c, K, theta)
+        res = erlang_a_calculator(lam, mu, c, K, sigma)
         results["P_block"].append(res["P_block"])
         results["P_abandon"].append(res["P_abandon"])
         results["L_q"].append(res["L_q"])
@@ -364,7 +368,7 @@ def plot_erlang_a_by_lambda(
     )
 
     fig.update_layout(
-        title_text=f'Модель Эрланга A: c={c}, K={K}, μ={mu:.2f}, θ={theta:.2f}',
+        title_text=f'Модель Эрланга A: c={c}, K={K}, μ={mu:.2f}, σ={sigma:.2f}',
         title_x=0.5,  # центрируем заголовок
         showlegend=False,  # легенда не нужна, т.к. подписи уже в заголовках subplot
         height=800
@@ -406,7 +410,7 @@ def plot_erlang_a_by_c(
         mu: float,
         c_range: Tuple[int, int],
         K_delta: int,
-        theta: float
+        sigma: float
 ) -> str:
     cs = range(c_range[0], c_range[1] + 1)
     results = {
@@ -417,13 +421,13 @@ def plot_erlang_a_by_c(
         "rho": []
     }
     for c in cs:
-        res = erlang_a_calculator(lam, mu, c, c + K_delta, theta)
+        res = erlang_a_calculator(lam, mu, c, c + K_delta, sigma)
         results["P_block"].append(res["P_block"])
         results["P_abandon"].append(res["P_abandon"])
         results["L_q"].append(res["L_q"])
         results["W_q"].append(res["W_q"])
         results["rho"].append(res["rho"])
-    cs = np.linspace(c_range[0], c_range[1], num=abs(c_range[1]-c_range[0]+1))
+    cs = np.linspace(c_range[0], c_range[1], num=c_range[1]-c_range[0]+1)
 
     # Создаём сетку 2x2 с общими настройками
     fig = make_subplots(
@@ -441,7 +445,7 @@ def plot_erlang_a_by_c(
     )
 
     fig.update_layout(
-        title_text=f'Модель Эрланга A: lambda={lam}, K_delta={K_delta}, μ={mu:.2f}, θ={theta:.2f}',
+        title_text=f'Модель Эрланга A: lambda={lam}, K_delta={K_delta}, μ={mu:.2f}, σ={sigma:.2f}',
         title_x=0.5,  # центрируем заголовок
         showlegend=False,  # легенда не нужна, т.к. подписи уже в заголовках subplot
         height=800
@@ -487,10 +491,10 @@ if __name__ == "__main__":
     c = 600  # 600 операторов
     K = c + 100  # 600+100 мест в системе (100 мест в очереди)
     # K = c+0      # 600+0 мест в системе (0 мест в очереди)
-    theta = 1 / 15  # среднее терпение 15 минут (θ = 1/15)
+    sigma = 1 / 15  # среднее терпение 15 минут (θ = 1/15)
 
     print("Расчёт характеристик для заданных параметров:\n")
-    res = erlang_a_calculator(lambda_, mu, c, K, theta)
+    res = erlang_a_calculator(lambda_, mu, c, K, sigma)
     for key, value in res.items():
         if key in ["P_block", "P_wait", "P_immediate", "P_abandon"]:
             print(f"{key:20s}: {value:.6f} ({value * 100:.2f} %)")
@@ -499,8 +503,8 @@ if __name__ == "__main__":
 
     if c != K:
         # Построение графиков зависимости от λ в диапазоне [600, 1000]
-        plot_erlang_a_by_lambda((lambda_ * 0.5, lambda_ * 1.5), mu, c, K, theta, num_points=100)
-        plot_erlang_a_by_c(lambda_, mu, (c-20, c+20), K - c, theta)
+        plot_erlang_a_by_lambda((lambda_ * 0.5, lambda_ * 1.5), mu, c, K, sigma, num_points=100)
+        plot_erlang_a_by_c(lambda_, mu, ((c-20 if c>20 else 1), c+20), K - c, sigma)
 
 # Расчёт показателей для модели Эрланга A (M/M/c/K+M) с конечной очередью
 # и экспоненциальным временем терпения.
