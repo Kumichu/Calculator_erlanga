@@ -4,38 +4,38 @@ import threading
 import os
 from typing import Dict
 
-from erlmath import erlang_a_calculator, plot_erlang_a_by_lambda, plot_erlang_a_by_c
+from erlmath import erlang_a_calculator, erlang_b_calculator, erlang_c_calculator, plot_erlang_a_by_lambda, plot_erlang_a_by_c
 
 app = Flask(__name__)
 
 
-def erlang_b_calculator(lambda_: float, mu: float, c: int) -> Dict[str, float]:
-    """
-    Эрланг B (M/M/c/c): система с отказами без очереди
-    """
-    if lambda_ <= 0 or mu <= 0:
-        raise ValueError("Интенсивности должны быть положительными")
-    if c <= 0:
-        raise ValueError("Число каналов должно быть >= 1")
-
-    a = lambda_ / mu
-
-    inv_b = 1.0
-    for n in range(1, c + 1):
-        inv_b = 1.0 + inv_b * n / a
-    p_block = 1.0 / inv_b
-
-    lambda_eff = lambda_ * (1.0 - p_block)
-    l_s = a * (1.0 - p_block)
-    rho = lambda_ / (c * mu)
-
-    return {
-        "P_block": p_block,
-        "P_immediate": 1.0 - p_block,
-        "L_s": l_s,
-        "lambda_eff": lambda_eff,
-        "rho": rho,
-    }
+# def erlang_b_calculator(lambda_: float, mu: float, c: int) -> Dict[str, float]:
+#     """
+#     Эрланг B (M/M/c/c): система с отказами без очереди
+#     """
+#     if lambda_ <= 0 or mu <= 0:
+#         raise ValueError("Интенсивности должны быть положительными")
+#     if c <= 0:
+#         raise ValueError("Число каналов должно быть >= 1")
+#
+#     a = lambda_ / mu
+#
+#     inv_b = 1.0
+#     for n in range(1, c + 1):
+#         inv_b = 1.0 + inv_b * n / a
+#     p_block = 1.0 / inv_b
+#
+#     lambda_eff = lambda_ * (1.0 - p_block)
+#     l_s = a * (1.0 - p_block)
+#     rho = lambda_ / (c * mu)
+#
+#     return {
+#         "P_block": p_block,
+#         "P_immediate": 1.0 - p_block,
+#         "L_s": l_s,
+#         "lambda_eff": lambda_eff,
+#         "rho": rho,
+#     }
 
 
 def build_result_rows(metrics: Dict[str, float]):
@@ -55,8 +55,7 @@ def build_result_rows(metrics: Dict[str, float]):
         "lambda_eff": "Эффективная интенсивность потока",
         "rho": "Нагрузка на один канал",
     }
-
-    percent_keys = {"P_block", "P_wait", "P_immediate", "P_abandon", "P_out"}
+    percent_keys = ["P_block", "P_wait", "P_immediate", "P_abandon", "P_out"]
 
     rows = []
     for key, value in metrics.items():
@@ -70,16 +69,15 @@ def build_result_rows(metrics: Dict[str, float]):
             "value": formatted
         })
 
-    print(metrics.items())
     return rows
 
 
 def parse_erlang_a_args(args):
-    lambda_ = float(args.get("lambda_", 600))
-    mu = float(args.get("mu", 0.25))
-    c = int(args.get("c", 400))
-    K = int(args.get("K", 500))
-    theta = float(args.get("theta", 0.2))
+    lambda_ = float(args.get("lambda_", 100))
+    mu = float(args.get("mu", 1))
+    c = int(args.get("c", 200))
+    K = int(args.get("K", 300))
+    theta = float(args.get("theta", 0.5))
 
     if lambda_ <= 0 or mu <= 0 or theta < 0:
         raise ValueError("Интенсивности должны быть положительными, theta >= 0")
@@ -133,7 +131,6 @@ def erlanga_graphs():
         lambda_, mu, c, K, theta = parse_erlang_a_args(request.args)
         mode = request.args.get("mode", "lambda")
         metrics = erlang_a_calculator(lambda_, mu, c, K, theta)
-        print(metrics)
         return render_erlanga_result_page(lambda_, mu, c, K, theta, metrics, mode)
     except ValueError as e:
         return render_template(
@@ -310,7 +307,7 @@ def calculate_erlangc():
         c = int(request.form["c"])
         K = int(request.form["K"])
 
-        metrics = erlang_a_calculator(lambda_, mu, c, K, 0)
+        metrics = erlang_c_calculator(lambda_, mu, c, K)
 
         return render_template(
             "calculator_erlanga_c.html",
