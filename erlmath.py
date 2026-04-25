@@ -13,7 +13,7 @@ def erlang_a_calculator(
         sigma: float
 ) -> Dict[str, float]:
     """
-    Расчёт показателей для модели Эрланга A (M/M/c/K+M) с конечной очередью
+    Расчёт показателей для модели Эрланга A (M/M/c/с+K) с конечной очередью
     и экспоненциальным временем терпения.
 
     Параметры:
@@ -54,7 +54,8 @@ def erlang_a_calculator(
         raise ValueError("Должно быть c >= 1 и K >= c")
 
     # Число каналов небольшое - применяем прямое вычисление
-    if c <= 100:
+    # if c <= 90:
+    try:
         # Вычисление относительных вероятностей (p_n / p_0)
         rel_probs = [0.0] * (K + 1)
 
@@ -81,7 +82,8 @@ def erlang_a_calculator(
         # Абсолютные вероятности состояний
         p = [p0 * rp for rp in rel_probs]
     # Число каналов большое - применяем рекуррентные формулы в логарифмической шкале
-    else:
+    # else:
+    except OverflowError:
         # Логарифмы относительных вероятностей ln(p_n / p_0)
         ln_rel = [0.0] * (K + 1)
 
@@ -162,20 +164,124 @@ def erlang_a_calculator(
         # Случай K == c: очереди нет, поэтому все "очередные" метрики равны 0
         return {
             "P_block": P_block,  # Вероятность блокировки (потери) заявки
-            "P_wait": 0.0,  # Ожидания нет, так как очередь отсутствует
+            # "P_wait": 0.0,  # Ожидания нет, так как очередь отсутствует
             "P_immediate": 1.0 - P_block,  # Все принятые заявки обслуживаются сразу
-            "P_abandon": 0.0,  # Ухода из очереди нет, так как очереди нет
+            # "P_abandon": 0.0,  # Ухода из очереди нет, так как очереди нет
             "P_out": P_block, # Доля необслуженных заявок
-            "L_q": 0.0,  # Средняя длина очереди
+            # "L_q": 0.0,  # Средняя длина очереди
             "L_s": L_s,  # Среднее число занятых каналов
             "L": L_s,  # Среднее число заявок в системе = число занятых каналов
-            "W_q": 0.0,  # Среднее время ожидания в очереди
+            # "W_q": 0.0,  # Среднее время ожидания в очереди
             "W": (L_s / lambda_eff) if lambda_eff > 0 else 0.0,  # Среднее время пребывания в системе
-            "W_q_given_wait": 0.0,  # Никто не ожидает
-            "W_q_served": 0.0,  # Для обслуженных ожидание отсутствует
+            # "W_q_given_wait": 0.0,  # Никто не ожидает
+            # "W_q_served": 0.0,  # Для обслуженных ожидание отсутствует
             "lambda_eff": lambda_eff,  # Эффективная интенсивность входящего потока (принятые заявки)
             "rho": rho  # Параметр нагрузки на один канал
         }
+
+
+def erlang_b_calculator(
+        lambda_: float,
+        mu: float,
+        c: int
+) -> Dict[str, float]:
+    return erlang_a_calculator(lambda_, mu, c, c, 0)
+
+
+def erlang_c_calculator(
+        lambda_: float,
+        mu: float,
+        c: int,
+        K: int
+) -> Dict[str, float]:
+    return erlang_a_calculator(lambda_, mu, c, K, 0)
+
+
+def erlang_a_find_c(
+    lambda_: float,
+    mu: float,
+    K_delta: int,
+    sigma: float,
+    P_out_t: float
+) -> Dict[str, float]:
+    """
+    Подбирает минимально возможное число каналов c.
+
+    Параметры:
+    ----------
+    lambda_ : float
+        Интенсивность поступления заявок (ед./время)
+    mu : float
+        Интенсивность обслуживания одним каналом (ед./время)
+    K_delta : int
+        Размер очереди
+    sigma : float
+        Интенсивность ухода из очереди одного ожидающего клиента (ед./время)
+    P_out_t : float
+        Требуемое значение P_out
+
+    Возвращает:
+    ----------
+    Dict[str, float]
+        Словарь с основными характеристиками системы:
+        - То же, что и erlang_a_calculator
+        - Значение c
+    """
+    c = 0
+    while True:
+        c+=1
+        res = erlang_a_calculator(lambda_, mu, c, c+K_delta, sigma)
+        P_out = res.get("P_out", 1)
+        if P_out<=P_out_t:
+            res["c"] = c
+            return res
+        if c>10**5:
+            raise ValueError("Число каналов выходит больше 10^5")
+
+
+def erlang_a_find_lambda(
+    mu: float,
+    c: int,
+    K: int,
+    sigma: float,
+    P_out_t: float
+) -> Dict[str, float]:
+    """
+    Подбирает максимально возможное значение lambda.
+
+    Параметры:
+    ----------
+    mu : float
+        Интенсивность обслуживания одним каналом (ед./время)
+    c : int
+        Число обслуживающих каналов (серверов)
+    K : int
+        Общее число мест в системе (c + размер очереди). K >= c >= 1
+    sigma : float
+        Интенсивность ухода из очереди одного ожидающего клиента (ед./время)
+    P_out_t : float
+        Требуемое значение P_out
+
+    Возвращает:
+    ----------
+    Dict[str, float]
+        Словарь с основными характеристиками системы:
+        - То же, что и erlang_a_calculator
+        - Значение lambda
+    """
+    lambda_ = 0
+    lambda_prev = 0
+    while True:
+        lambda_prev = lambda_
+        lambda_+=0.1
+        res = erlang_a_calculator(lambda_, mu, c, K, sigma)
+        P_out = res.get("P_out", 1)
+        if P_out>P_out_t:
+            res = erlang_a_calculator(lambda_prev, mu, c, K, sigma)
+            res["lambda"] = lambda_prev
+            return res
+        if lambda_>2000:
+            raise ValueError("lambda выходит больше 2000")
 
 
 def plot_erlang_a_analysis_by_lambda_OLD(
@@ -335,7 +441,7 @@ def plot_erlang_a_by_lambda(
         sigma: float,
         num_points: int = 100
 ) -> str:
-    lambdas = np.linspace(lambda_range[0], lambda_range[1], num_points)
+    lambdas = np.linspace(lambda_range[0], lambda_range[1], num_points).tolist()
     results = {
         "P_block": [],
         "P_abandon": [],
@@ -427,7 +533,7 @@ def plot_erlang_a_by_c(
         results["L_q"].append(res["L_q"])
         results["W_q"].append(res["W_q"])
         results["rho"].append(res["rho"])
-    cs = np.linspace(c_range[0], c_range[1], num=c_range[1]-c_range[0]+1)
+    cs = np.linspace(c_range[0], c_range[1], num=c_range[1]-c_range[0]+1).tolist()
 
     # Создаём сетку 2x2 с общими настройками
     fig = make_subplots(
@@ -487,12 +593,15 @@ def plot_erlang_a_by_c(
 if __name__ == "__main__":
     # Параметры колл-центра
     lambda_ = 170.0  # 170 звонков в минуту
-    mu = 1 / 4  # среднее время разговора 4 минуты (μ = 1/4)
+    mu = 1 / 1  # среднее время разговора 4 минуты (μ = 1/4)
     c = 600  # 600 операторов
     K = c + 100  # 600+100 мест в системе (100 мест в очереди)
     # K = c+0      # 600+0 мест в системе (0 мест в очереди)
-    sigma = 1 / 15  # среднее терпение 15 минут (θ = 1/15)
+    sigma = 1 / 2  # среднее терпение 15 минут (θ = 1/15)
 
+    print(erlang_a_find_c(lambda_, mu, K-c, sigma, 0.01))
+    print(erlang_a_find_lambda(mu, c, K, sigma, 0.01))
+    quit()
     print("Расчёт характеристик для заданных параметров:\n")
     res = erlang_a_calculator(lambda_, mu, c, K, sigma)
     for key, value in res.items():
