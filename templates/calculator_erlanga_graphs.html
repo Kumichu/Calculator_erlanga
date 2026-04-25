@@ -13,7 +13,6 @@
             <h1>Графики Эрланга A</h1>
             <p>{{ page_subtitle }}</p>
         </div>
-        <p class="graph-description">{{ page_description }}</p>
     </div>
 
     {% if error %}
@@ -49,6 +48,7 @@
 
     <div class="result-area">
         <h3>Интерактивный график</h3>
+        <p class="graph-description">{{ page_description }}</p>
         <div class="plot-wrapper">{{ plot_div | safe }}</div>
     </div>
     {% endif %}
