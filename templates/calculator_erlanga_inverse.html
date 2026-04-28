@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Обратный расчёт Эрланга A{% endblock %}
+
+{% block content %}
+<div class="calculator-container">
+    <div class="calculator-header">
+        <h1>Обратный расчёт Эрланга A</h1>
+        <p>Подбор числа каналов или допустимой интенсивности по целевому P_out</p>
+    </div>
+
+    {% if error %}
+    <div class="error-message">{{ error }}</div>
+    {% endif %}
+
+    <div class="inverse-grid">
+        <section class="inverse-panel">
+            <h2>Подобрать число каналов c</h2>
+            <form method="POST" action="/calculator/erlanga/inverse/calculate" class="calculator-form">
+                <input type="hidden" name="mode" value="find_c">
+
+                <div class="form-group">
+                    <label for="lambda_find_c">Интенсивность поступления λ</label>
+                    <input type="number" step="any" min="0" class="form-control" id="lambda_find_c" name="lambda_" value="{{ lambda_ if mode == 'find_c' and lambda_ is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="mu_find_c">Интенсивность обслуживания μ</label>
+                    <input type="number" step="any" min="0" class="form-control" id="mu_find_c" name="mu" value="{{ mu if mode == 'find_c' and mu is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="K_delta">Размер очереди K_delta</label>
+                    <input type="number" min="0" class="form-control" id="K_delta" name="K_delta" value="{{ K_delta if mode == 'find_c' and K_delta is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="sigma_find_c">Интенсивность ухода из очереди σ</label>
+                    <input type="number" step="any" min="0" class="form-control" id="sigma_find_c" name="sigma" value="{{ sigma if mode == 'find_c' and sigma is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="P_out_t_find_c">Целевое значение P_out</label>
+                    <input type="number" step="any" min="0" max="1" class="form-control" id="P_out_t_find_c" name="P_out_t" value="{{ P_out_t if mode == 'find_c' and P_out_t is defined else '' }}" required>
+                </div>
+
+                <button type="submit" class="btn-submit">Подобрать c</button>
+            </form>
+        </section>
+
+        <section class="inverse-panel">
+            <h2>Подобрать максимальную λ</h2>
+            <form method="POST" action="/calculator/erlanga/inverse/calculate" class="calculator-form">
+                <input type="hidden" name="mode" value="find_lambda">
+
+                <div class="form-group">
+                    <label for="mu_find_lambda">Интенсивность обслуживания μ</label>
+                    <input type="number" step="any" min="0" class="form-control" id="mu_find_lambda" name="mu" value="{{ mu if mode == 'find_lambda' and mu is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="c_find_lambda">Число каналов c</label>
+                    <input type="number" min="1" class="form-control" id="c_find_lambda" name="c" value="{{ c if mode == 'find_lambda' and c is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="K_find_lambda">Общее число мест K</label>
+                    <input type="number" min="1" class="form-control" id="K_find_lambda" name="K" value="{{ K if mode == 'find_lambda' and K is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="sigma_find_lambda">Интенсивность ухода из очереди σ</label>
+                    <input type="number" step="any" min="0" class="form-control" id="sigma_find_lambda" name="sigma" value="{{ sigma if mode == 'find_lambda' and sigma is defined else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="P_out_t_find_lambda">Целевое значение P_out</label>
+                    <input type="number" step="any" min="0" max="1" class="form-control" id="P_out_t_find_lambda" name="P_out_t" value="{{ P_out_t if mode == 'find_lambda' and P_out_t is defined else '' }}" required>
+                </div>
+
+                <button type="submit" class="btn-submit">Подобрать λ</button>
+            </form>
+        </section>
+    </div>
+
+    {% if results %}
+    <div class="result-area">
+        <h3>{{ result_title }}</h3>
+        <div class="metrics-grid">
+            {% for item in results %}
+            <div class="metric-card">
+                <div class="metric-label">{{ item.label }}</div>
+                <div class="metric-value">{{ item.value }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
