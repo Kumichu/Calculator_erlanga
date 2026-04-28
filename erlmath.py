@@ -229,7 +229,14 @@ def erlang_a_find_c(
     """
     c = 0
     while True:
-        c+=1
+        if c<20:
+            c+=1
+        elif c<200:
+            c+=2
+        elif c<300:
+            c+=5
+        else:
+            c+=10
         res = erlang_a_calculator(lambda_, mu, c, c+K_delta, sigma)
         P_out = res.get("P_out", 1)
         if P_out<=P_out_t:
@@ -273,7 +280,12 @@ def erlang_a_find_lambda(
     lambda_prev = 0
     while True:
         lambda_prev = lambda_
-        lambda_+=0.1
+        if lambda_<50:
+            lambda_+=0.1
+        elif lambda_<200:
+            lambda_+=1
+        else:
+            lambda_+=5
         res = erlang_a_calculator(lambda_, mu, c, K, sigma)
         P_out = res.get("P_out", 1)
         if P_out>P_out_t:
@@ -592,15 +604,15 @@ def plot_erlang_a_by_c(
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     # Параметры колл-центра
-    lambda_ = 170.0  # 170 звонков в минуту
+    lambda_ = 120.0  # 170 звонков в минуту
     mu = 1 / 1  # среднее время разговора 4 минуты (μ = 1/4)
-    c = 600  # 600 операторов
-    K = c + 100  # 600+100 мест в системе (100 мест в очереди)
+    c = 100  # 600 операторов
+    K = c + 15  # 600+100 мест в системе (100 мест в очереди)
     # K = c+0      # 600+0 мест в системе (0 мест в очереди)
-    sigma = 1 / 2  # среднее терпение 15 минут (θ = 1/15)
+    sigma = 4 / 5  # среднее терпение 15 минут (θ = 1/15)
 
-    print(erlang_a_find_c(lambda_, mu, K-c, sigma, 0.01))
-    print(erlang_a_find_lambda(mu, c, K, sigma, 0.01))
+    print(erlang_a_find_c(lambda_, mu, K-c, sigma, 0.05))
+    print(erlang_a_find_lambda(mu, c, K, sigma, 0.05))
     quit()
     print("Расчёт характеристик для заданных параметров:\n")
     res = erlang_a_calculator(lambda_, mu, c, K, sigma)
