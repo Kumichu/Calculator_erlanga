@@ -292,8 +292,8 @@ def erlang_a_find_lambda(
             res = erlang_a_calculator(lambda_prev, mu, c, K, sigma)
             res["lambda"] = lambda_prev
             return res
-        if lambda_>2000:
-            raise ValueError("lambda выходит больше 2000")
+        if lambda_>5000:
+            raise ValueError("lambda выходит больше 5000")
 
 
 def plot_erlang_a_analysis_by_lambda_OLD(
