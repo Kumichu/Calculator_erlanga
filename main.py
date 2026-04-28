@@ -4,7 +4,15 @@ import threading
 import os
 from typing import Dict
 
-from erlmath import erlang_a_calculator, erlang_b_calculator, erlang_c_calculator, plot_erlang_a_by_lambda, plot_erlang_a_by_c
+from erlmath import (
+    erlang_a_calculator,
+    erlang_a_find_c,
+    erlang_a_find_lambda,
+    erlang_b_calculator,
+    erlang_c_calculator,
+    plot_erlang_a_by_lambda,
+    plot_erlang_a_by_c,
+)
 
 app = Flask(__name__)
 
@@ -54,6 +62,8 @@ def build_result_rows(metrics: Dict[str, float]):
         "W_q_served": "Среднее время ожидания для обслуженных заявок",
         "lambda_eff": "Эффективная интенсивность потока",
         "rho": "Нагрузка на один канал",
+        "c": "Подобранное число каналов c",
+        "lambda": "Максимальная интенсивность поступления λ",
     }
     percent_keys = ["P_block", "P_wait", "P_immediate", "P_abandon", "P_out"]
 
@@ -95,6 +105,94 @@ def index():
 @app.route("/calculator/erlanga")
 def calculator_erlanga():
     return render_template("calculator_erlanga_a.html")
+
+
+@app.route("/calculator/erlanga/inverse")
+def calculator_erlanga_inverse():
+    return render_template("calculator_erlanga_inverse.html")
+
+
+@app.route("/calculator/erlanga/inverse/calculate", methods=["POST"])
+def calculate_erlanga_inverse():
+    mode = request.form.get("mode", "")
+
+    try:
+        mu = float(request.form["mu"])
+        sigma = float(request.form["sigma"])
+        P_out_t = float(request.form["P_out_t"])
+
+        if mu <= 0 or sigma < 0:
+            raise ValueError("Интенсивность обслуживания должна быть положительной, σ >= 0")
+        if not 0 <= P_out_t <= 1:
+            raise ValueError("Целевое значение P_out должно быть в диапазоне от 0 до 1")
+
+        template_args = {
+            "mode": mode,
+            "mu": mu,
+            "sigma": sigma,
+            "P_out_t": P_out_t,
+        }
+
+        if mode == "find_c":
+            lambda_ = float(request.form["lambda_"])
+            K_delta = int(request.form["K_delta"])
+
+            if lambda_ <= 0 or K_delta < 0:
+                raise ValueError("Интенсивность поступления должна быть положительной, K_delta >= 0")
+
+            metrics = erlang_a_find_c(lambda_, mu, K_delta, sigma, P_out_t)
+            template_args.update({
+                "lambda_": lambda_,
+                "K_delta": K_delta,
+                "result_title": "Результат подбора числа каналов",
+            })
+        elif mode == "find_lambda":
+            c = int(request.form["c"])
+            K = int(request.form["K"])
+
+            if c <= 0 or K < c:
+                raise ValueError("Должно быть c >= 1 и K >= c")
+
+            metrics = erlang_a_find_lambda(mu, c, K, sigma, P_out_t)
+            template_args.update({
+                "c": c,
+                "K": K,
+                "result_title": "Результат подбора максимальной интенсивности λ",
+            })
+        else:
+            raise ValueError("Неизвестный режим обратного расчёта")
+
+        return render_template(
+            "calculator_erlanga_inverse.html",
+            results=build_result_rows(metrics),
+            **template_args
+        )
+    except ValueError as e:
+        return render_template(
+            "calculator_erlanga_inverse.html",
+            error=str(e),
+            mode=mode,
+            lambda_=request.form.get("lambda_", ""),
+            mu=request.form.get("mu", ""),
+            c=request.form.get("c", ""),
+            K=request.form.get("K", ""),
+            K_delta=request.form.get("K_delta", ""),
+            sigma=request.form.get("sigma", ""),
+            P_out_t=request.form.get("P_out_t", "")
+        )
+    except Exception as e:
+        return render_template(
+            "calculator_erlanga_inverse.html",
+            error=f"Ошибка: {str(e)}",
+            mode=mode,
+            lambda_=request.form.get("lambda_", ""),
+            mu=request.form.get("mu", ""),
+            c=request.form.get("c", ""),
+            K=request.form.get("K", ""),
+            K_delta=request.form.get("K_delta", ""),
+            sigma=request.form.get("sigma", ""),
+            P_out_t=request.form.get("P_out_t", "")
+        )
 
 
 def render_erlanga_result_page(lambda_, mu, c, K, theta, metrics, mode="lambda"):
